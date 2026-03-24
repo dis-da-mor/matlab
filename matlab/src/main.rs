@@ -1,5 +1,7 @@
 use std::io::{self, Write};
 
+mod tools;
+
 mod colours;
 use colours::Colours;
 
@@ -22,8 +24,13 @@ fn main() {
 			Ok(_) => {},
 			Err(_) => {
 				eprintln!("{}Error: Could not read input...{}", Colours::RED, Colours::RESET);
-				std::process::exit(1);
+				continue;
 			}
+		}
+		input = input.trim().to_string();
+
+		if input.to_lowercase() == "quit".to_string() {
+			return;
 		}
 
 		matlab::evaluate(&input);

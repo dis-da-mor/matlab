@@ -1,4 +1,5 @@
 use std::ops::{Add, Sub, Mul};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Matrix {
@@ -8,6 +9,7 @@ pub struct Matrix {
 	buffer: Box<[f64]>
 }
 
+#[allow(dead_code)]
 impl Matrix {
 	pub fn new(rows: usize, columns: usize) -> Self {
 		let buffer = vec![0.0; rows * columns];
@@ -95,6 +97,24 @@ impl Matrix {
 	pub fn checked_mul(&self, other: &Self) -> Result<Self, &str> {
 		self.checked_multiply(other)
 	}
+
+	pub fn to_string(&self) -> String {
+		let mut stringified = String::new();
+		stringified.push('[');
+		for row in 0..self.rows() {
+			stringified.push('\n');
+			stringified.push_str("  ");
+			for column in 0..self.columns() {
+				stringified.push_str(&format!("{} ", self.get(row, column).unwrap()));
+			}
+		}
+		if self.rows > 0 {
+			stringified.push('\n');
+		}
+		stringified.push(']');
+
+		stringified
+	}
 }
 
 impl Add for Matrix {
@@ -124,5 +144,11 @@ impl Mul for Matrix {
 		self
 			.checked_multiply(&rhs)
 			.expect("Matrix multiplication failed")
+	}
+}
+
+impl Display for Matrix {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.to_string())
 	}
 }

@@ -29,7 +29,7 @@ fn main() {
 		}
 		input = input.trim().to_string();
 
-		if input.to_lowercase() == "quit".to_string() {
+		if &input.to_lowercase() == "quit" {
 			return;
 		}
 

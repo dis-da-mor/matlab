@@ -1,5 +1,5 @@
- use std::collections::BTreeMap;
-use std::fmt::{Display, Error, write};
+use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::str::FromStr;
 
 use crate::matrix::Matrix;

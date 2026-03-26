@@ -22,6 +22,7 @@ pub enum Token {
 	Number(f64),
 	Variable(String),
 	Operator(Operator),
+	Function(String),
 	Matrix(Matrix)
 }
 
@@ -31,6 +32,7 @@ enum TokenType {
 	Number,
 	Variable,
 	Operator,
+	Function,
 	Matrix
 }
 
@@ -52,18 +54,18 @@ fn is_variable(char: char) -> bool {
 fn parse_operator(operator: &str) -> Result<Operator, &str> {
 	Ok(match operator {
 		"^" | "**" => Operator::Power,
-		"*" => Operator::Multiply,
-		"/" => Operator::Divide,
-		"+" => Operator::Add,
-		"-" => Operator::Subtract,
-		"==" => Operator::EqualTo,
-		"!=" => Operator::NotEqualTo,
-		"<" => Operator::LessThan,
-		">" => Operator::GreaterThan,
-		"<=" => Operator::LessThanOrEqualTo,
-		">=" => Operator::GreaterThanOrEqualTo,
-		"!" => Operator::Not,
-		"=" => Operator::Assign,
+		"*"        => Operator::Multiply,
+		"/"        => Operator::Divide,
+		"+"        => Operator::Add,
+		"-"        => Operator::Subtract,
+		"=="       => Operator::EqualTo,
+		"!="       => Operator::NotEqualTo,
+		"<"        => Operator::LessThan,
+		">"        => Operator::GreaterThan,
+		"<="       => Operator::LessThanOrEqualTo,
+		">="       => Operator::GreaterThanOrEqualTo,
+		"!"        => Operator::Not,
+		"="        => Operator::Assign,
 		_ => return Err("Unknown operator")
 	})
 }
@@ -148,7 +150,18 @@ pub fn tokenise(input: &str) -> Result<Vec<Token>, String> {
 			TokenType::Variable => {
 				if char.is_alphabetic() {
 					accum.push(char);
+				} else if char == '(' {
+					accum_type = TokenType::Function;
+					accum.push(char);
 				} else {
+					let _ = push_token(&mut tokens, &accum, accum_type);
+					accum_type = TokenType::None;
+				}
+			},
+			TokenType::Function => {
+				accum.push(char);
+
+				if char == ')' {
 					let _ = push_token(&mut tokens, &accum, accum_type);
 					accum_type = TokenType::None;
 				}

@@ -1,16 +1,16 @@
-use std::io::{self, Write};
+use std::io::{stdin, stdout, Write};
 
 mod tools;
 mod colours;
-use colours::Colours;
+use colours::println_error;
 mod matrix;
 mod tokeniser;
 mod matlab;
 use crate::matlab::Evaluator;
 
 fn main() {
-	let stdin = io::stdin();
-	let mut stdout = io::stdout();
+	let stdin = stdin();
+	let mut stdout = stdout();
 
 	let mut evaluator = Evaluator::new();
 
@@ -25,7 +25,7 @@ fn main() {
 		match stdin.read_line(&mut input) {
 			Ok(_) => {},
 			Err(_) => {
-				eprintln!("{}Error: Could not read input...{}", Colours::RED, Colours::RESET);
+				println_error("Error: Could not read input...".to_owned());
 				continue;
 			}
 		}

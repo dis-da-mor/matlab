@@ -8,6 +8,8 @@ use crate::tokeniser::{
 	tokenise
 };
 
+use crate::colours::println_error;
+
 fn group_by_operators(expressions: &mut Vec<ExpressionElement>, operators: Vec<Operator>) {
 	let mut i = 1;
 	loop {
@@ -69,7 +71,7 @@ impl Evaluator {
 		let tokens = match tokenise(input) {
 			Ok(t) => t,
 			Err(err) => {
-				eprintln!("Error: {}", err);
+				println_error(format!("Error: {}", err));
 				return;
 			}
 		};
@@ -77,7 +79,7 @@ impl Evaluator {
 		let expression_list = match tokens_to_expressions(&tokens) {
 			Ok(e) => e,
 			Err(err) => {
-				eprintln!("Error: {}", err);
+				println_error(format!("Error: {}", err));
 				return;
 			}
 		};
@@ -85,7 +87,7 @@ impl Evaluator {
 		let result = match expression_list[0].evaluate(&mut self.variables) {
 			Ok(t) => t,
 			Err(err) => {
-				println!("Error: {}", err);
+				println_error(format!("Error: {}", err));
 				return;
 			}
 		};

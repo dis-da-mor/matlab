@@ -1,20 +1,24 @@
-use std::str::FromStr;
 use std::collections::BTreeMap;
 
-use crate::matrix::Matrix;
-use crate::tools::Searchable;
-use crate::tokeniser::{Token, TokenResult, Operator, tokenise};
+use crate::tokeniser::{
+	Operator,
+	print_token,
+	Token,
+	TokenResult,
+	tokenise
+};
 
 fn group_by_operators(expressions: &mut Vec<ExpressionElement>, operators: Vec<Operator>) {
-	let mut i = 0;
+	let mut i = 1;
 	loop {
+		if i > expressions.len() - 1 {
+			break;
+		}
+
 		let token = match &expressions[i] {
 			ExpressionElement::Token(t) => t.clone(),
 			ExpressionElement::Expression(_) => {
 				i += 1;
-				if i > expressions.len() - 1 {
-					break;
-				}
 				continue
 			}
 		};
@@ -30,11 +34,9 @@ fn group_by_operators(expressions: &mut Vec<ExpressionElement>, operators: Vec<O
 		}
 
 		i += 1;
-		if i > expressions.len() - 1 {
-			break;
-		}
 	}
 }
+
 fn tokens_to_expressions(tokens: &Vec<Token>) -> Result<Vec<ExpressionElement>, &str> {
 	let mut expressions: Vec<ExpressionElement> = tokens.iter()
 		.map(|token| ExpressionElement::Token(token.clone())).collect();
@@ -42,7 +44,14 @@ fn tokens_to_expressions(tokens: &Vec<Token>) -> Result<Vec<ExpressionElement>, 
 	group_by_operators(&mut expressions, vec![Operator::Power]);
 	group_by_operators(&mut expressions, vec![Operator::Multiply, Operator::Divide]);
 	group_by_operators(&mut expressions, vec![Operator::Add, Operator::Subtract]);
-	group_by_operators(&mut expressions, vec![Operator::EqualTo, Operator::NotEqualTo, Operator::LessThan, Operator::GreaterThan, Operator::LessThanOrEqualTo, Operator::GreaterThanOrEqualTo]);
+	group_by_operators(&mut expressions, vec![
+		Operator::EqualTo,
+		Operator::NotEqualTo,
+		Operator::LessThan,
+		Operator::LessThanOrEqualTo,
+		Operator::GreaterThan,
+		Operator::GreaterThanOrEqualTo
+	]);
 	group_by_operators(&mut expressions, vec![Operator::Assign]);
 
 	Ok(expressions)
@@ -80,26 +89,10 @@ impl Evaluator {
 				return;
 			}
 		};
-		match result {
-			Token::Number(n) => println!("{}", n),
-			Token::Matrix(m) => println!("{}", m),
-			_ => {}
-		}
+		print_token(&result, &self.variables);
 	}
 }
 
-fn power(lhs: &mut Token, rhs: &mut Token) -> TokenResult {
-	match lhs {
-		Token::Number(lhs) => {
-			match rhs {
-				Token::Number(rhs) => Ok(Token::Number(lhs.powf(*rhs))),
-				_ => Err("Cannot raise LHS by the type of RHS".to_owned())
-			}
-		},
-		// Token::Matrix(lhs) => {},
-		_ => Err("Cannot compute power of type of LHS".to_owned())
-	}
-}
 fn add(lhs: &mut Token, rhs: &mut Token) -> TokenResult {
 	match lhs {
 		Token::Matrix(lhs) => {
@@ -198,6 +191,18 @@ fn divide(lhs: &mut Token, rhs: &mut Token) -> TokenResult {
 		_ => Err("Cannot divide type of LHS".to_owned())
 	}
 }
+fn power(lhs: &mut Token, rhs: &mut Token) -> TokenResult {
+	match lhs {
+		Token::Number(lhs) => {
+			match rhs {
+				Token::Number(rhs) => Ok(Token::Number(lhs.powf(*rhs))),
+				_ => Err("Cannot raise LHS by the type of RHS".to_owned())
+			}
+		},
+		// Token::Matrix(lhs) => {},
+		_ => Err("Cannot compute power of type of LHS".to_owned())
+	}
+}
 fn equal_to(lhs: &mut Token, rhs: &mut Token) -> TokenResult {
 	match lhs {
 		Token::Number(lhs) => match rhs {
@@ -265,7 +270,7 @@ fn greater_than_or_equal_to(lhs: &mut Token, rhs: &mut Token) -> TokenResult {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum ExpressionElement {
 	Token(Token),
 	Expression(Box<Expression>)
@@ -279,27 +284,22 @@ impl ExpressionElement {
 		};
 
 		// recursively evaluate expression tree
-		if let ExpressionElement::Expression(_) = &expression.lhs {
-			match expression.lhs.evaluate(variables) {
-				Ok(_) => {},
-				Err(err) => return Err(err)
-			};
-		}
-		if let ExpressionElement::Expression(_) = &expression.rhs {
-			match expression.rhs.evaluate(variables) {
-				Ok(_) => {},
-				Err(err) => return Err(err)
-			};
-		}
-
 		// if either we are still left with an expression, something has gone very bad
+		let lhs = &expression.lhs;
 		let mut lhs = match &expression.lhs {
 			ExpressionElement::Token(t) => t.clone(),
-			ExpressionElement::Expression(_) => return Err("Failed to properly evaluate expression".to_owned())
+			ExpressionElement::Expression(_) => match lhs.evaluate(variables) {
+				Ok(t) => t,
+				Err(err) => return Err(err)
+			}
 		};
+		let rhs = &expression.rhs;
 		let mut rhs = match &expression.rhs {
 			ExpressionElement::Token(t) => t.clone(),
-			ExpressionElement::Expression(_) => return Err("Failed to properly evaluate expression".to_owned())
+			ExpressionElement::Expression(_) => match rhs.evaluate(variables) {
+				Ok(t) => t,
+				Err(err) => return Err(err)
+			}
 		};
 
 		// dereference variables (skip LHS on assign operations)
@@ -342,85 +342,9 @@ impl ExpressionElement {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Expression {
 	lhs: ExpressionElement,
 	rhs: ExpressionElement,
 	operator: Operator
-}
-
-impl FromStr for Matrix {
-	type Err = String;
-
-	fn from_str(string: &str) -> Result<Self, Self::Err> {
-		let mut rows: Vec<Vec<f64>> = Vec::new();
-
-		// parse matrix
-		let matrix_start = match string.index_of("[") {
-			Some(idx) => idx + 1,
-			None => 0
-		};
-		let mut accum = String::new();
-		let mut row: Vec<f64> = Vec::new();
-		for char in string.chars().skip(matrix_start) {
-			if char == ']' {
-				break;
-			}
-
-			if char.is_ascii_digit() || char == '.' || char == '-' {
-				accum.push(char);
-			} else if char == ' ' || char == ',' || char == ';' {
-				if accum.len() > 0 {
-					let num: f64 = match accum.parse() {
-						Ok(n) => n,
-						Err(_) => return Err("Failed to parse value.".to_owned())
-					};
-
-					row.push(num);
-					accum = String::new();
-				}
-			}
-			
-			if char == ';' {
-				rows.push(row);
-				row = Vec::new();
-			}
-		}
-
-		// flush current values
-		if accum.len() > 0 {
-			let num: f64 = match accum.parse() {
-				Ok(n) => n,
-				Err(_) => return Err("Failed to parse value.".to_owned())
-			};
-			
-			row.push(num);
-		}
-		if row.len() > 0 {
-			rows.push(row);
-		}
-
-		// validate matrix
-		if rows.len() == 0 || rows[0].len() == 0 {
-			return Ok(Matrix::new(0, 0));
-		}
-		for row in rows.iter().skip(1) {
-			if row.len() != rows[0].len() {
-				return Err("Row lengths don't match.".to_owned());
-			}
-		}
-
-		// populate matrix
-		let mut mat = Matrix::new(rows.len(), rows[0].len());
-		for row in 0..rows.len() {
-			for column in 0..rows[row].len() {
-				match mat.set(rows[row][column], row, column) {
-					Ok(_) => {},
-					Err(str) => return Err(format!("Error populating matrix: {}", str))
-				}
-			}
-		}
-
-		Ok(mat)
-	}
 }
